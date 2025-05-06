@@ -63,7 +63,7 @@ class Simulator:
             "qubit_loss_rate": total_error,
         }
 
-    def estimateKeyGenerationTime(self, key_len):
+    def estimate_key_generation_time(self, key_len):
         """
         Estimate the time required to generate a key of the specified length,
         including all delays and error rates.
@@ -186,14 +186,14 @@ def test_simulator_run_for():
 
 
 def test_simulator_estimate_time():
-    print("\n=== Testing Simulator.estimateKeyGenerationTime ===")
+    print("\n=== Testing Simulator.estimate_key_generation_time ===")
     sender = Endpoint(2e-6, 3e-6, 1e-6)
     receiver = Endpoint(2e-6, 3e-6, 1e-6)
 
     sim = Simulator([sender, receiver], length=2000, len_err=0.000015, fiber_speed=2e8)
     sim.add_err_source("dispersion", 0.015)
 
-    result = sim.estimateKeyGenerationTime(key_len=500)
+    result = sim.estimate_key_generation_time(key_len=500)
 
     print(f"Estimated time to generate key: {result['total_time_seconds']:.8f} s")
     print(f"Qubits needed: {result['qubits_needed']}")
