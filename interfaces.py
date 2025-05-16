@@ -2,19 +2,25 @@ import math
 
 
 class Simulator:
-    def __init__(self, endpoints, length, len_err, fiber_speed):
+    def __init__(self, endpoints, length, len_err, fiber_speed, testing_mode=False):
         self.endpoints = endpoints
         self.length = length
         self.len_err = len_err
         self.fiber_speed = fiber_speed
-        self.error_sources = {"fiber_length": 1 - math.exp(-len_err * length)}
+        self.testing_mode = testing_mode
+        self.base_error_sources = {"fiber_length": 1 - math.exp(-len_err * length)}
+        self.additional_error_sources = {}
 
     def add_err_source(self, name, err_rate):
-        self.error_sources[name] = err_rate
+        self.additional_error_sources[name] = err_rate
 
     def get_total_error(self):
+        error_sources = self.base_error_sources.copy()
+        if self.testing_mode:
+            error_sources.update(self.additional_error_sources)
+
         total_success = 1.0
-        for err in self.error_sources.values():
+        for err in error_sources.values():
             total_success *= 1 - err
         return 1 - total_success
 
@@ -68,30 +74,52 @@ class Simulator:
         Estimate the time required to generate a key of the specified length,
         including all delays and error rates.
         """
-        total_success = 1.0
-        for err in self.error_sources.values():
-            total_success *= 1 - err
-        total_error = 1 - total_success
-
+        total_error = self.get_total_error()
         survival_prob = 1 - total_error
-        # Estimate how many qubits need to be sent to generate the desired key length
         T = math.ceil(key_len / survival_prob)
 
-        # Calculate time for sending and receiving the qubits
         sender, receiver = self.endpoints
         send_time = sender.calc_total_send_delay(T)
         recv_time = receiver.calc_total_receive_delay(T)
-
-        # Propagation delay over the fiber (2-way propagation)
         prop_delay = self.length / self.fiber_speed
 
-        # Total time estimate
         total_time = send_time + recv_time + 2 * prop_delay
 
         return {
             "total_time_seconds": total_time,
             "qubits_needed": T,
             "qubit_loss_rate": total_error,
+        }
+
+    def run_all_diagnostics(self, key_len, fixed_time=0.01):
+        total_error = self.get_total_error()
+        survival_prob = 1 - total_error
+        T = math.ceil(key_len / survival_prob)
+
+        sender, receiver = self.endpoints
+        prop_delay = self.length / self.fiber_speed
+
+        send_delay = sender.calc_total_send_delay(T)
+        recv_delay = receiver.calc_total_receive_delay(T)
+        total_time = send_delay + recv_delay + 2 * prop_delay
+
+        # For fixed time diagnostics
+        per_qubit_time = (
+            sender.calc_total_send_delay(1)
+            + receiver.calc_total_receive_delay(1)
+            + 2 * prop_delay
+        )
+        qubits_possible = int(fixed_time // per_qubit_time)
+        expected_key_generated = int(qubits_possible * survival_prob)
+
+        return {
+            "send_delay": send_delay,
+            "receive_delay": recv_delay,
+            "total_time_seconds": total_time,
+            "qubits_needed": T,
+            "qubit_loss_rate": total_error,
+            "qubits_possible_in_fixed_time": qubits_possible,
+            "key_generated_in_fixed_time": expected_key_generated,
         }
 
 
@@ -136,8 +164,6 @@ class Endpoint:
 
 
 # Testing
-
-
 def test_endpoint():
     print("=== Testing Endpoint ===")
     ep = Endpoint(
@@ -219,9 +245,56 @@ def test_change_endpoints():
     print(f"After change - time: {result_after['total_time_seconds']:.8f} s")
 
 
+def test_simulator_baseline():
+    print("\n=== Baseline Mode (Only Fiber Length Error) ===")
+    sender = Endpoint(10e-6, 20e-6, 5e-6)
+    receiver = Endpoint(10e-6, 20e-6, 5e-6)
+
+    sim = Simulator(
+        [sender, receiver],
+        length=1000,
+        len_err=0.00001,
+        fiber_speed=2e8,
+        testing_mode=False,
+    )
+    results = sim.run_all_diagnostics(key_len=100, fixed_time=0.01)
+
+    for k, v in results.items():
+        if isinstance(v, float):
+            print(f"{k.replace('_', ' ').title()}: {v:.8f}")
+        else:
+            print(f"{k.replace('_', ' ').title()}: {v}")
+
+
+def test_simulator_testing():
+    print("\n=== Testing Mode (Includes External Factors) ===")
+    sender = Endpoint(10e-6, 20e-6, 5e-6)
+    receiver = Endpoint(10e-6, 20e-6, 5e-6)
+
+    sim = Simulator(
+        [sender, receiver],
+        length=1000,
+        len_err=0.00001,
+        fiber_speed=2e8,
+        testing_mode=True,
+    )
+    sim.add_err_source("background_noise", 0.01)
+    sim.add_err_source("polarization_mismatch", 0.02)
+
+    results = sim.run_all_diagnostics(key_len=100, fixed_time=0.01)
+
+    for k, v in results.items():
+        if isinstance(v, float):
+            print(f"{k.replace('_', ' ').title()}: {v:.8f}")
+        else:
+            print(f"{k.replace('_', ' ').title()}: {v}")
+
+
 if __name__ == "__main__":
     test_endpoint()
     test_simulator_basic_run()
     test_simulator_run_for()
     test_simulator_estimate_time()
     test_change_endpoints()
+    test_simulator_baseline()
+    test_simulator_testing()
