@@ -82,7 +82,7 @@ class ErrorCalculator:
         successfully transmit at target_bitrate on average
         """
         total_err = self.calculate_total_error()
-        return bitrate / (1 - total_err)
+        return target_bitrate / (1 - total_err)
         
 
 def _test_code():
@@ -101,6 +101,7 @@ def _basic_error_test():
     cal1.add_error_source(.75)
     print(f"Expected error: {.9}")
     print(f"Actual error: {cal1.calculate_total_error()}")
+    print()
 
 def _length_error_test():
     pass
@@ -122,13 +123,25 @@ def _simple_custom_error(length):
     return 1/length
 
 def _custom_error_test():
-    pass
+    print("Testing Custom Errors")
+    cal1 = ErrorCalculator(4)
+    cal1.add_custom_error(_snr_to_bit_err, 20)
+    expected = _snr_to_bit_err(20)
+    print(f"Expected error: {expected}")
+    print(f"Actual error: {cal1.calculate_total_error()}")
+    print()
 
 def _custon_length_error_test():
-    print("Testing simple errors")
+    print("Testing custom length errors")
     cal1 = ErrorCalculator(4)
-    
+    cal1.add_custom_length_error(_simple_custom_error)
+    print(f"Expected error: {.25}")
+    print(f"Actual error: {cal1.calculate_total_error()}")
     cal2 = ErrorCalculator(10)
+    cal2.add_custom_length_error(_simple_custom_error)
+    print(f"Expected error: {.1}")
+    print(f"Actual error: {cal2.calculate_total_error()}")
+    print()
     
 
 if __name__ == "__main__":
