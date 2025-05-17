@@ -104,7 +104,16 @@ def _basic_error_test():
     print()
 
 def _length_error_test():
-    pass
+    print("Testing length errors")
+    cal1 = ErrorCalculator(4)
+    cal1.add_length_dependent_error(.5)
+    print(f"Expected error: {15/16}")
+    print(f"Actual error: {cal1.calculate_total_error()}")
+    cal2 = ErrorCalculator(10)
+    cal2.add_length_dependent_error(.5)
+    print(f"Expected error: {1023/1024}")
+    print(f"Actual error: {cal2.calculate_total_error()}")
+    print()
 
 # Implementation of error function for BPSK modulation, in dB
 def _snr_to_bit_err(ratio):
@@ -125,8 +134,8 @@ def _simple_custom_error(length):
 def _custom_error_test():
     print("Testing Custom Errors")
     cal1 = ErrorCalculator(4)
-    cal1.add_custom_error(_snr_to_bit_err, 20)
-    expected = _snr_to_bit_err(20)
+    cal1.add_custom_error(_snr_to_bit_err, 5)
+    expected = _snr_to_bit_err(5)
     print(f"Expected error: {expected}")
     print(f"Actual error: {cal1.calculate_total_error()}")
     print()
