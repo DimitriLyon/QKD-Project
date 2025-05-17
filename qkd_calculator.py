@@ -60,8 +60,8 @@ class ErrorCalculator:
         """
         total_rate = 1.0
         for err in self.err.values():
-            total_success *= 1 - err
-        return 1 - total_success
+            total_rate *= 1 - err
+        return 1 - total_rate
     
     def adjust_bitrate(self, bitrate):
         """
@@ -87,6 +87,49 @@ class ErrorCalculator:
 
 def _test_code():
     _basic_error_test()
+    _length_error_test()
+    _custom_error_test()
+    _custon_length_error_test()
 
 def _basic_error_test():
+    print("Testing simple errors")
+    cal1 = ErrorCalculator(4)
+    cal1.add_error_source(.5)
+    print(f"Expected error: {.5}")
+    print(f"Actual error: {cal1.calculate_total_error()}")
+    cal1.add_error_source(.2)
+    cal1.add_error_source(.75)
+    print(f"Expected error: {.9}")
+    print(f"Actual error: {cal1.calculate_total_error()}")
+
+def _length_error_test():
+    pass
+
+# Implementation of error function for BPSK modulation, in dB
+def _snr_to_bit_err(ratio):
+    # convert from db to real ratio
+    # snr_db = 10log(Eb/N0)
+    fractional_ratio = math.pow(10,ratio/10)
+    # q parameter is sqrt(2*fractional_ratio)
+    q_param = math.sqrt(2*fractional_ratio)
+    # probability is 
+    # 1/2 * integral x->inf (e^(-t^2/2))dt
+    # this simplifies to 1/2 erfc(x/sqrt(2))
+    error_rate = .5 * math.erfc(q_param / math.sqrt(2))
+    return error_rate
+
+def _simple_custom_error(length):
+    return 1/length
+
+def _custom_error_test():
+    pass
+
+def _custon_length_error_test():
+    print("Testing simple errors")
+    cal1 = ErrorCalculator(4)
     
+    cal2 = ErrorCalculator(10)
+    
+
+if __name__ == "__main__":
+    _test_code()
